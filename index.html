@@ -133,13 +133,13 @@
     
     // DATA HANDLING & FIREBASE
     let state = {};
-    let localChanges = {}; // This will hold unsaved changes
+    let localChanges = {};
     const getInitialState = () => { const i = {}; for (const f in FRIDGES) { i[f] = Array(FRIDGES[f].count).fill({ product: 'ખાલી', isHalf: false }); } return i; };
     let applyingRemote = false;
 
-    function applyStateToUI() {
+    function applyStateToUI(sourceState) {
       applyingRemote = true;
-      for (const [fridgeId, data] of Object.entries(state)) {
+      for (const [fridgeId, data] of Object.entries(sourceState)) {
         if (!data) continue;
         data.forEach((crate, index) => {
           const productSelect = document.querySelector(`select[data-fridge="${fridgeId}"][data-index="${index}"]`);
@@ -161,7 +161,7 @@
       setStatus('સેવ થઈ રહ્યું છે...');
       try {
         await updateDoc(docRef, { ...localChanges, updatedAt: new Date() });
-        localChanges = {}; // Clear changes after successful save
+        localChanges = {};
         setStatus('સેવ થઈ ગયું ✅');
       } catch (error) {
         console.error("Save failed:", error);
@@ -171,10 +171,8 @@
 
     $content.addEventListener('change', (e) => {
       if (applyingRemote || !(e.target.matches('select') || e.target.matches('input[type="checkbox"]'))) return;
-      
       const { fridge, index, type } = e.target.dataset;
       const value = (type === 'isHalf') ? e.target.checked : e.target.value;
-      
       localChanges[`${fridge}.${index}.${type}`] = value;
       setStatus('ફેરફાર સેવ કરવા SAVE દબાવો');
     });
@@ -187,24 +185,30 @@
       const initialState = getInitialState();
       setStatus('રીસેટ થઈ રહ્યું છે...');
       await setDoc(docRef, { ...initialState, date: dateKey, createdAt: new Date() });
-      // onSnapshot will automatically update the UI
       setStatus('રીસેટ થઈ ગયું ✅');
     });
 
+    // ===== અહીં મુખ્ય ફેરફાર કર્યો છે =====
     onAuthStateChanged(auth, async (user) => {
       if (!user) { try { await signInAnonymously(auth); } catch(e) { setStatus('ઓથેન્ટિકેશન નિષ્ફળ ❌'); } return; }
       
-      buildUI(); 
+      buildUI();
+      
+      const snap = await getDoc(docRef);
+      if (!snap.exists()) {
+        state = getInitialState();
+        await setDoc(docRef, { ...state, date: dateKey, createdAt: new Date() });
+      } else {
+        state = { ...getInitialState(), ...snap.data() };
+      }
+      applyStateToUI(state);
+      setStatus('રીયલટાઇમ જોડાયેલ ✅');
 
-      onSnapshot(docRef, async (snap) => {
-        if (!snap.exists()) {
-          state = getInitialState();
-          await setDoc(docRef, { ...state, date: dateKey, createdAt: new Date() });
-        } else {
-          state = { ...getInitialState(), ...snap.data() };
+      onSnapshot(docRef, (docSnap) => {
+        if (docSnap.exists()) {
+          state = { ...getInitialState(), ...docSnap.data() };
+          applyStateToUI(state);
         }
-        applyStateToUI();
-        setStatus('રીયલટાઇમ જોડાયેલ ✅');
       }, (error) => {
         console.error("Snapshot error:", error);
         setStatus('રીયલટાઇમ કનેક્શન તૂટ્યું ❌');
