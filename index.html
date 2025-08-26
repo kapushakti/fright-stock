@@ -24,53 +24,21 @@
     .controls{display:flex; gap:8px; align-items: center;}
     .date{font-weight:700; font-size: 14px;}
     button{appearance:none; border:0; border-radius:10px; padding: 8px 12px; font-weight:700; cursor:pointer;}
-    .save{background:var(--accent); color:#fff;} /* SAVE બટન માટે સ્ટાઈલ */
+    .save{background:var(--accent); color:#fff;}
     .reset{background:var(--danger); color:#fff;}
     .status{font-size:12px; color:var(--muted); min-height:18px;}
     .content{padding: 12px;}
     .fridge-section{margin-bottom: 20px;}
     
-    .custom-layout-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      grid-auto-rows: min-content;
-      gap: 6px;
-    }
-    .fridge-name-box {
-      grid-area: 3 / 1 / 5 / 2;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--bg);
-      font-weight: 700;
-      font-size: 15px;
-      color: var(--muted);
-      text-align: center;
-    }
-    .crate-box{
-      border:1px solid var(--line);
-      border-radius:8px;
-      background:var(--card);
-      padding: 4px;
-    }
-    .crate-box select{
-      width:100%; border:1px solid var(--line); border-radius:5px;
-      padding: 5px 2px; font-family:inherit; font-size:12px;
-      font-weight:500; background-color:var(--bg); margin-bottom: 3px;
-    }
+    .custom-layout-grid { display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: min-content; gap: 6px; }
+    .fridge-name-box { grid-area: 3 / 1 / 5 / 2; display: flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); font-weight: 700; font-size: 15px; color: var(--muted); text-align: center; }
+    .crate-box{ border:1px solid var(--line); border-radius:8px; background:var(--card); padding: 4px; }
+    .crate-box select{ width:100%; border:1px solid var(--line); border-radius:5px; padding: 5px 2px; font-family:inherit; font-size:12px; font-weight:500; background-color:var(--bg); margin-bottom: 3px; }
     .half-section{display:flex; align-items:center; justify-content:center; gap:4px;}
     .half-section label{font-size:11px; color:var(--muted); font-weight:500;}
     .half-section input[type="checkbox"]{width:15px; height:15px; margin: 0;}
-
-    .vertical-fridge-title {
-        font-size:16px; font-weight:700; margin:0 0 10px 0;
-        padding-bottom:6px; border-bottom:2px solid var(--accent);
-    }
-    .vertical-grid-container {
-        display: grid; grid-template-columns: 1fr; gap: 6px; max-width: 150px;
-    }
+    .vertical-fridge-title { font-size:16px; font-weight:700; margin:0 0 10px 0; padding-bottom:6px; border-bottom:2px solid var(--accent); }
+    .vertical-grid-container { display: grid; grid-template-columns: 1fr; gap: 6px; max-width: 150px; }
 
     @media (min-width: 500px) {
       .custom-layout-grid { gap: 10px; }
@@ -92,55 +60,37 @@
         </div>
         <div class="controls">
           <div class="date" id="dateLabel">--</div>
-          <!-- ===== SAVE બટન ઉમેર્યું ===== -->
           <button class="save" id="saveBtn">SAVE</button>
           <button class="reset" id="resetBtn">RESET</button>
         </div>
       </div>
-
-      <div class="content" id="content">
-        <!-- Fridge sections will be dynamically generated here -->
-      </div>
+      <div class="content" id="content"></div>
     </div>
   </div>
 
   <script type="module">
-    // ====== 1) CONFIG ======
-    const FIREBASE_CONFIG = {
-      apiKey: "AIzaSyAvmNdKnVDqciXWN-fASQ77b9ovdamaM7k",
-      authDomain: "amul-stock.firebaseapp.com",
-      projectId: "amul-stock",
-      storageBucket: "amul-stock.firebasestorage.app",
-      messagingSenderId: "721564107787",
-      appId: "1:721564107787:web:d2e305a47e0a8becae730e"
-    };
-    
+    // ====== CONFIG ======
+    const FIREBASE_CONFIG = { apiKey: "AIzaSyAvmNdKnVDqciXWN-fASQ77b9ovdamaM7k", authDomain: "amul-stock.firebaseapp.com", projectId: "amul-stock", storageBucket: "amul-stock.firebasestorage.app", messagingSenderId: "721564107787", appId: "1:721564107787:web:d2e305a47e0a8becae730e" };
     const PRODUCTS = [ "ખાલી", "તાજા 150", "ગોલ્ડ 500", "તાજા 500", "T સ્પે ગીર", "A તાજા 500", "T સ્પે અમુલ", "છાસ ગીર", "છાસ 680", "છાસ 300", "FF 150", "દહીં 850", "દહીં 1 KG", "દહીં 5 KG", "ગોલ્ડ 6 લી" ];
-    const FRIDGES = {
-      white_fridge: { name: "વ્હાઇટ ફ્રિજ", count: 14, layout: 'custom' },
-      blue_fridge: { name: "બ્લુ ફ્રિજ", count: 14, layout: 'custom' },
-      amul_fridge: { name: "અમુલ ફ્રિજ", count: 14, layout: 'custom' },
-      fourth_fridge: { name: "ચોથું ફ્રિજ", count: 4, layout: 'vertical' }
-    };
+    const FRIDGES = { white_fridge: { name: "વ્હાઇટ ફ્રિજ", count: 14, layout: 'custom' }, blue_fridge: { name: "બ્લુ ફ્રિજ", count: 14, layout: 'custom' }, amul_fridge: { name: "અમુલ ફ્રિજ", count: 14, layout: 'custom' }, fourth_fridge: { name: "ચોથું ફ્રિજ", count: 4, layout: 'vertical' } };
 
-    // ====== 2) FIREBASE SETUP ======
+    // ====== FIREBASE SETUP ======
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
     import { getAuth, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, updateDoc, getDoc, onSnapshot, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
-
     const app = initializeApp(FIREBASE_CONFIG);
     const auth = getAuth(app);
     const db = getFirestore(app);
     try { await enableIndexedDbPersistence(db); } catch(e) { console.warn('Persistence:', e.message); }
 
-    // ====== 3) DOM અને અન્ય સેટઅપ ======
+    // ====== DOM & SETUP ======
     const $status = document.getElementById('status');
     const $content = document.getElementById('content');
     const dateKey = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })).toISOString().slice(0, 10);
     document.getElementById('dateLabel').textContent = `તારીખ: ${dateKey.split('-').reverse().join('-')}`;
     const docRef = doc(db, 'fridge_crates', dateKey);
 
-    // ====== 4) UI બનાવવું ======
+    // ====== UI BUILDER ======
     function buildUI() {
       $content.innerHTML = '';
       const productOptions = PRODUCTS.map(p => `<option value="${p}">${p}</option>`).join('');
@@ -148,8 +98,7 @@
         const section = document.createElement('div');
         section.className = 'fridge-section';
         if (fridgeData.layout === 'custom') {
-            const grid = document.createElement('div');
-            grid.className = 'custom-layout-grid';
+            const grid = document.createElement('div'); grid.className = 'custom-layout-grid';
             let crateIndex = 0;
             for(let row=1; row<=4; row++){
                 for(let col=1; col<=4; col++){
@@ -161,18 +110,13 @@
                     crateIndex++;
                 }
             }
-            const nameBox = document.createElement('div');
-            nameBox.className = 'fridge-name-box';
-            nameBox.textContent = fridgeData.name;
-            grid.appendChild(nameBox);
+            const nameBox = document.createElement('div'); nameBox.className = 'fridge-name-box';
+            nameBox.textContent = fridgeData.name; grid.appendChild(nameBox);
             section.appendChild(grid);
         } else {
-            const title = document.createElement('h2');
-            title.className = 'vertical-fridge-title';
-            title.textContent = fridgeData.name;
-            section.appendChild(title);
-            const grid = document.createElement('div');
-            grid.className = 'vertical-grid-container';
+            const title = document.createElement('h2'); title.className = 'vertical-fridge-title';
+            title.textContent = fridgeData.name; section.appendChild(title);
+            const grid = document.createElement('div'); grid.className = 'vertical-grid-container';
             for (let i = 0; i < fridgeData.count; i++) {
                 grid.appendChild(createCrateBox(fridgeId, i, productOptions));
             }
@@ -182,27 +126,15 @@
       }
     }
     function createCrateBox(fridgeId, index, productOptions) {
-        const crateBox = document.createElement('div');
-        crateBox.className = 'crate-box';
-        crateBox.innerHTML = `
-          <select data-fridge="${fridgeId}" data-index="${index}" data-type="product">${productOptions}</select>
-          <div class="half-section">
-            <input type="checkbox" id="half_${fridgeId}_${index}" data-fridge="${fridgeId}" data-index="${index}" data-type="isHalf">
-            <label for="half_${fridgeId}_${index}">અળધુ</label>
-          </div>
-        `;
+        const crateBox = document.createElement('div'); crateBox.className = 'crate-box';
+        crateBox.innerHTML = `<select data-fridge="${fridgeId}" data-index="${index}" data-type="product">${productOptions}</select><div class="half-section"><input type="checkbox" id="half_${fridgeId}_${index}" data-fridge="${fridgeId}" data-index="${index}" data-type="isHalf"><label for="half_${fridgeId}_${index}">અળધુ</label></div>`;
         return crateBox;
     }
     
-    // ====== 5) ડેટા હેન્ડલિંગ અને ફાયરબેઝ ======
+    // ====== DATA HANDLING & FIREBASE ======
     let state = {};
-    const getInitialState = () => {
-      const initialState = {};
-      for (const fridgeId in FRIDGES) {
-        initialState[fridgeId] = Array(FRIDGES[fridgeId].count).fill({ product: 'ખાલી', isHalf: false });
-      }
-      return initialState;
-    };
+    let pendingChanges = {}; // ===== અહીં નવો ફેરફાર કર્યો =====
+    const getInitialState = () => { const i = {}; for (const f in FRIDGES) { i[f] = Array(FRIDGES[f].count).fill({ product: 'ખાલી', isHalf: false }); } return i; };
     let applyingRemote = false;
 
     function applyStateToUI() {
@@ -223,9 +155,14 @@
 
     // ===== સેવ અને ચેન્જની કાર્યપ્રણાલી બદલી =====
     async function saveState() {
+        if (Object.keys(pendingChanges).length === 0) {
+            setStatus('કોઈ ફેરફાર નથી');
+            return;
+        }
         setStatus('સેવ થઈ રહ્યું છે...');
         try {
-            await updateDoc(docRef, { ...state, updatedAt: new Date() });
+            await updateDoc(docRef, { ...pendingChanges, updatedAt: new Date() });
+            pendingChanges = {}; // ફેરફારોને ખાલી કરી દો
             setStatus('સેવ થઈ ગયું ✅');
         } catch (error) {
             console.error("Save failed:", error);
@@ -239,10 +176,9 @@
         const { fridge, index, type } = e.target.dataset;
         const value = (type === 'isHalf') ? e.target.checked : e.target.value;
 
-        if(!state[fridge]) state[fridge] = [];
-        if(!state[fridge][index]) state[fridge][index] = { product: 'ખાલી', isHalf: false };
-        state[fridge][index][type] = value;
-
+        // લોકલ state ને બદલે pendingChanges માં ફેરફારો ઉમેરો
+        pendingChanges[`${fridge}.${index}.${type}`] = value;
+        
         setStatus('ફેરફાર સેવ કરવા SAVE દબાવો');
     });
 
@@ -250,40 +186,28 @@
 
     document.getElementById('resetBtn').addEventListener('click', async () => {
         if (!confirm('આજે માટે આખું લેઆઉટ સાફ કરવા RESET કરશો?')) return;
-        state = getInitialState();
-        applyStateToUI();
-        await setDoc(docRef, { ...state, date: dateKey, createdAt: new Date() });
+        pendingChanges = {}; // બાકી રહેલા ફેરફારો કાઢી નાખો
+        const initialState = getInitialState();
+        await setDoc(docRef, { ...initialState, date: dateKey, createdAt: new Date() });
+        // onSnapshot આપમેળે UI અપડેટ કરી દેશે
         setStatus('રીસેટ થઈ ગયું ✅');
     });
-
-    // ===========================================
-
+    
     onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        try { await signInAnonymously(auth); } catch(e) { setStatus('ઓથેન્ટિકેશન નિષ્ફળ ❌'); }
-        return;
-      }
-      
+      if (!user) { try { await signInAnonymously(auth); } catch(e) { setStatus('ઓથેન્ટિકેશન નિષ્ફળ ❌'); } return; }
       buildUI(); 
-
       const snap = await getDoc(docRef);
       if (!snap.exists()) {
         state = getInitialState();
         await setDoc(docRef, { ...state, date: dateKey, createdAt: new Date() });
-      } else {
-        state = { ...getInitialState(), ...snap.data() };
-      }
+      } else { state = { ...getInitialState(), ...snap.data() }; }
       applyStateToUI();
       setStatus('રીયલટાઇમ જોડાયેલ ✅');
-
       onSnapshot(docRef, (snap) => {
         if (!snap.exists()) return;
         state = { ...getInitialState(), ...snap.data() };
         applyStateToUI();
-      }, (error) => {
-        console.error("Snapshot error:", error);
-        setStatus('રીયલટાઇમ કનેક્શન તૂટ્યું ❌');
-      });
+      }, (error) => { console.error("Snapshot error:", error); setStatus('રીયલટાઇમ કનેક્શન તૂટ્યું ❌'); });
     });
   </script>
 </body>
