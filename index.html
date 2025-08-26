@@ -1,4 +1,4 @@
-<meta name='viewport' content='width=device-width, initial-scale=1'/><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="gu">
 <head>
   <meta charset="UTF-8" />
@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Gujarati:wght@500;700&display=swap" rel="stylesheet">
   <style>
     :root{
-      --bg:#f8fafc; --card:#ffffff; --muted:#64748b; --accent:#22c55e;
+      --bg:#f8fafc; --card:#ffffff; --muted:#475569; --accent:#22c55e;
       --danger:#ef4444; --text:#1e293b; --line:#e2e8f0; --input-bg: #f1f5f9;
     }
     *{box-sizing:border-box}
@@ -18,7 +18,7 @@
       background:var(--bg); color:var(--text); -webkit-tap-highlight-color: transparent;
     }
     .wrap{max-width:980px; margin:0 auto; padding:8px;}
-    .card{background:var(--card); border:1px solid var(--line); border-radius:16px; box-shadow:0 4px 15px rgba(0,0,0,.07);}
+    .card{background:var(--card); border:1px solid var(--line); border-radius:16px; box-shadow:0 4px_15px rgba(0,0,0,.07);}
     .header{padding:12px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; gap:12px;}
     h1{font-size:18px; margin:0; font-weight:700;}
     .controls{display:flex; gap:8px; align-items: center;}
@@ -28,22 +28,63 @@
     .status{font-size:12px; color:var(--muted); min-height:18px;}
     
     .content{padding: 12px;}
-    .fridge-section{margin-bottom: 20px;}
-    .fridge-title{font-size:16px; font-weight:700; margin:0 0 10px 0; padding-bottom:6px; border-bottom:2px solid var(--accent);}
     
-    .grid-container{display:grid; gap:8px; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));}
-    .grid-container.vertical{grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));}
+    /* ===== અહીંથી લેઆઉટમાં મુખ્ય ફેરફાર કરેલ છે ===== */
+    .fridge-section{
+      display: flex;
+      align-items: stretch; /* Title and grid will have same height */
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .fridge-title{
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      text-align: center;
+      font-size: 16px;
+      font-weight: 700;
+      background-color: var(--input-bg);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0; /* Don't shrink the title */
+    }
+    .grid-container{
+      flex-grow: 1; /* Grid takes the rest of the space */
+      display: grid;
+      gap: 6px;
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .grid-container.vertical{
+      grid-template-columns: 1fr;
+      flex-grow: 0; /* Don't grow vertically */
+      width: 120px;
+    }
 
-    .crate-box{border:1px solid var(--line); border-radius:8px; background:var(--bg); padding:5px;}
+    .crate-box{
+      border:1px solid var(--line);
+      border-radius:8px;
+      background:var(--bg);
+      padding: 4px; /* ખાનાને ચપટા કરવા પેડિંગ ઓછું કર્યું */
+    }
     
     .crate-box select{
-      width:100%; border:1px solid var(--line); border-radius:6px; padding:6px 4px;
-      font-family:inherit; font-size:13px; font-weight:500; background-color:var(--input-bg);
-      margin-bottom: 4px;
+      width:100%;
+      border:1px solid var(--line);
+      border-radius:5px;
+      padding: 5px 2px; /* સિલેક્ટ બોક્સને ચપટું કર્યું */
+      font-family:inherit;
+      font-size:12px; /* અક્ષર નાના કર્યા */
+      font-weight:500;
+      background-color:var(--card);
+      margin-bottom: 3px;
     }
-    .half-section{display:flex; align-items:center; justify-content:center; gap:5px;}
-    .half-section label{font-size:12px; color:var(--muted); font-weight:500;}
-    .half-section input[type="checkbox"]{width:16px; height:16px;}
+    .half-section{display:flex; align-items:center; justify-content:center; gap:4px;}
+    .half-section label{font-size:11px; color:var(--muted); font-weight:500;}
+    .half-section input[type="checkbox"]{width:15px; height:15px; margin: 0;}
+    /* ================================================== */
   </style>
 </head>
 <body>
@@ -115,6 +156,7 @@
 
     // ====== 4) UI બનાવવું ======
     function buildUI() {
+      $content.innerHTML = ''; // Clear previous UI
       const productOptions = PRODUCTS.map(p => `<option value="${p}">${p}</option>`).join('');
       for (const [fridgeId, fridgeData] of Object.entries(FRIDGES)) {
         const section = document.createElement('div');
@@ -160,6 +202,7 @@
     function applyStateToUI() {
       applyingRemote = true;
       for (const [fridgeId, data] of Object.entries(state)) {
+        if (!data) continue;
         data.forEach((crate, index) => {
           const productSelect = document.querySelector(`select[data-fridge="${fridgeId}"][data-index="${index}"]`);
           const isHalfCheck = document.querySelector(`input[data-fridge="${fridgeId}"][data-index="${index}"]`);
@@ -184,7 +227,6 @@
         const { fridge, index, type } = e.target.dataset;
         const value = (type === 'isHalf') ? e.target.checked : e.target.value;
 
-        // Update local state immediately for responsiveness
         if(!state[fridge]) state[fridge] = [];
         if(!state[fridge][index]) state[fridge][index] = { product: 'ખાલી', isHalf: false };
         state[fridge][index][type] = value;
@@ -211,7 +253,7 @@
         return;
       }
       
-      buildUI(); // Auth successful, now build the UI
+      buildUI(); 
 
       const snap = await getDoc(docRef);
       if (!snap.exists()) {
