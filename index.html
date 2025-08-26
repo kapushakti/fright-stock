@@ -23,7 +23,9 @@
     h1{font-size:18px; margin:0; font-weight:700;}
     .controls{display:flex; gap:8px; align-items: center;}
     .date{font-weight:700; font-size: 14px;}
-    button.reset{appearance:none; border:0; border-radius:10px; padding: 8px 12px; font-weight:700; cursor:pointer; background:var(--danger); color:#fff;}
+    button{appearance:none; border:0; border-radius:10px; padding: 8px 12px; font-weight:700; cursor:pointer;}
+    .save{background:var(--accent); color:#fff;}
+    .reset{background:var(--danger); color:#fff;}
     .status{font-size:12px; color:var(--muted); min-height:18px;}
     .content{padding: 12px;}
     .fridge-section{margin-bottom: 20px;}
@@ -58,6 +60,7 @@
         </div>
         <div class="controls">
           <div class="date" id="dateLabel">--</div>
+          <button class="save" id="saveBtn">SAVE</button>
           <button class="reset" id="resetBtn">RESET</button>
         </div>
       </div>
@@ -126,12 +129,13 @@
     
     // DATA HANDLING & FIREBASE
     let state = {};
+    let localChanges = {};
     const getInitialState = () => { const i = {}; for (const f in FRIDGES) { i[f] = Array(FRIDGES[f].count).fill({ product: 'ખાલી', isHalf: false }); } return i; };
     let applyingRemote = false;
 
-    function applyStateToUI() {
+    function applyStateToUI(sourceState) {
       applyingRemote = true;
-      for (const [fridgeId, data] of Object.entries(state)) {
+      for (const [fridgeId, data] of Object.entries(sourceState)) {
         if (!data) continue;
         data.forEach((crate, index) => {
           const productSelect = document.querySelector(`select[data-fridge="${fridgeId}"][data-index="${index}"]`);
@@ -143,62 +147,62 @@
       applyingRemote = false;
     }
     
-    function setStatus(msg){ $status.textContent = msg; clearTimeout(setStatus._t); setStatus._t = setTimeout(()=>{$status.textContent=''}, 2000); }
+    function setStatus(msg){ $status.textContent = msg; clearTimeout(setStatus._t); setStatus._t = setTimeout(()=>{$status.textContent=''}, 2500); }
     
-    async function ensureDoc() {
-        const snap = await getDoc(docRef);
-        if (!snap.exists()) {
-            state = getInitialState();
-            await setDoc(docRef, { ...state, date: dateKey, createdAt: new Date() });
-        } else {
-            state = { ...getInitialState(), ...snap.data() };
-        }
+    async function saveState() {
+      if (Object.keys(localChanges).length === 0) {
+        setStatus('કોઈ ફેરફાર નથી');
+        return;
+      }
+      setStatus('સેવ થઈ રહ્યું છે...');
+      try {
+        await updateDoc(docRef, { ...localChanges, updatedAt: new Date() });
+        localChanges = {};
+        setStatus('સેવ થઈ ગયું ✅');
+      } catch (error) {
+        console.error("Save failed:", error);
+        setStatus('સેવ નિષ્ફળ ❌');
+      }
     }
 
-    let debounceTimer;
     $content.addEventListener('change', (e) => {
       if (applyingRemote || !(e.target.matches('select') || e.target.matches('input[type="checkbox"]'))) return;
-      
       const { fridge, index, type } = e.target.dataset;
       const value = (type === 'isHalf') ? e.target.checked : e.target.value;
-
-      const updatePayload = {
-        [`${fridge}.${index}.${type}`]: value,
-        updatedAt: new Date()
-      };
-      
-      setStatus('સેવ થઈ રહ્યું છે...');
-      clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => {
-        updateDoc(docRef, updatePayload)
-          .then(() => setStatus('સેવ થઈ ગયું ✅'))
-          .catch(error => {
-            console.error("Save failed:", error);
-            setStatus('સેવ નિષ્ફળ ❌');
-          });
-      }, 500); // 500ms delay
+      localChanges[`${fridge}.${index}.${type}`] = value;
+      setStatus('ફેરફાર સેવ કરવા SAVE દબાવો');
     });
+
+    document.getElementById('saveBtn').addEventListener('click', saveState);
 
     document.getElementById('resetBtn').addEventListener('click', async () => {
       if (!confirm('આજે માટે આખું લેઆઉટ સાફ કરવા RESET કરશો?')) return;
+      localChanges = {};
       const initialState = getInitialState();
       setStatus('રીસેટ થઈ રહ્યું છે...');
       await setDoc(docRef, { ...initialState, date: dateKey, createdAt: new Date() });
       setStatus('રીસેટ થઈ ગયું ✅');
     });
-
+    
     onAuthStateChanged(auth, async (user) => {
       if (!user) { try { await signInAnonymously(auth); } catch(e) { setStatus('ઓથેન્ટિકેશન નિષ્ફળ ❌'); } return; }
       
-      buildUI(); 
-      await ensureDoc();
-      applyStateToUI();
+      buildUI();
+      
+      const snap = await getDoc(docRef);
+      if (!snap.exists()) {
+        state = getInitialState();
+        await setDoc(docRef, { ...state, date: dateKey, createdAt: new Date() });
+      } else {
+        state = { ...getInitialState(), ...snap.data() };
+      }
+      applyStateToUI(state);
       setStatus('રીયલટાઇમ જોડાયેલ ✅');
 
       onSnapshot(docRef, (docSnap) => {
         if (docSnap.exists()) {
           state = { ...getInitialState(), ...docSnap.data() };
-          applyStateToUI();
+          applyStateToUI(state);
         }
       }, (error) => {
         console.error("Snapshot error:", error);
