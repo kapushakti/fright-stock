@@ -29,15 +29,14 @@
     .content{padding: 12px;}
     .fridge-section{margin-bottom: 20px;}
     
-    /* ===== અહીંથી લેઆઉટમાં મુખ્ય ફેરફાર કરેલ છે ===== */
     .custom-layout-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      grid-template-rows: repeat(4, auto);
+      grid-auto-rows: min-content;
       gap: 6px;
     }
     .fridge-name-box {
-      grid-area: 3 / 1 / 5 / 2; /* Row 3 to 5, Column 1 */
+      grid-area: 3 / 1 / 5 / 2;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -64,13 +63,35 @@
     .half-section label{font-size:11px; color:var(--muted); font-weight:500;}
     .half-section input[type="checkbox"]{width:15px; height:15px; margin: 0;}
 
-    /* ચોથા ફ્રિજ માટે જૂનું લેઆઉટ */
     .vertical-fridge-title {
         font-size:16px; font-weight:700; margin:0 0 10px 0;
         padding-bottom:6px; border-bottom:2px solid var(--accent);
     }
     .vertical-grid-container {
         display: grid; grid-template-columns: 1fr; gap: 6px; max-width: 150px;
+    }
+
+    /* ===== આડી સ્ક્રીન (Landscape Mode) માટે સુધારો ===== */
+    @media (min-width: 500px) {
+      .custom-layout-grid {
+        gap: 10px; /* ખાના વચ્ચે વધુ જગ્યા */
+      }
+      .crate-box {
+        padding: 8px; /* ખાનાની અંદર વધુ જગ્યા */
+      }
+      .crate-box select {
+        font-size: 14px; /* અક્ષરો મોટા કર્યા */
+        padding: 8px 5px; /* ડ્રોપડાઉનમાં વધુ જગ્યા */
+      }
+      .half-section label {
+        font-size: 13px; /* 'અળધુ' લખેલા અક્ષરો મોટા કર્યા */
+      }
+      .fridge-name-box {
+        font-size: 16px; /* ફ્રિજના નામના અક્ષરો મોટા કર્યા */
+      }
+      .vertical-grid-container {
+        max-width: 200px; /* ચોથા ફ્રિજની પહોળાઈ વધારી */
+      }
     }
     /* ================================================== */
   </style>
@@ -155,11 +176,22 @@
             const grid = document.createElement('div');
             grid.className = 'custom-layout-grid';
             
-            // Add 14 crate boxes
-            for (let i = 0; i < fridgeData.count; i++) {
-                grid.appendChild(createCrateBox(fridgeId, i, productOptions));
+            let crateIndex = 0;
+            for(let row=1; row<=4; row++){
+                for(let col=1; col<=4; col++){
+                    // Skip the first column for rows 3 and 4
+                    if((row === 3 || row === 4) && col === 1) continue;
+
+                    // Stop if we've added all 14 crates
+                    if(crateIndex >= fridgeData.count) break;
+
+                    const crateBox = createCrateBox(fridgeId, crateIndex, productOptions);
+                    crateBox.style.gridArea = `${row} / ${col} / span 1 / span 1`;
+                    grid.appendChild(crateBox);
+                    crateIndex++;
+                }
             }
-            // Add the name box
+            
             const nameBox = document.createElement('div');
             nameBox.className = 'fridge-name-box';
             nameBox.textContent = fridgeData.name;
@@ -197,7 +229,6 @@
     }
     
     // ====== 5) ડેટા હેન્ડલિંગ અને ફાયરબેઝ ======
-    // (આ વિભાગમાં કોઈ ફેરફાર નથી, તે પહેલા જેવો જ છે)
     let state = {};
     const getInitialState = () => {
       const initialState = {};
