@@ -1,0 +1,237 @@
+<meta name='viewport' content='width=device-width, initial-scale=1'/><!DOCTYPE html>
+<html lang="gu">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Fridge Layout</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Gujarati:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#f8fafc; --card:#ffffff; --muted:#64748b; --accent:#22c55e;
+      --danger:#ef4444; --text:#1e293b; --line:#e2e8f0; --input-bg: #f1f5f9;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:"Noto Sans Gujarati", system-ui, sans-serif;
+      background:var(--bg); color:var(--text); -webkit-tap-highlight-color: transparent;
+    }
+    .wrap{max-width:980px; margin:0 auto; padding:8px;}
+    .card{background:var(--card); border:1px solid var(--line); border-radius:16px; box-shadow:0 4px 15px rgba(0,0,0,.07);}
+    .header{padding:12px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; gap:12px;}
+    h1{font-size:18px; margin:0; font-weight:700;}
+    .controls{display:flex; gap:8px; align-items: center;}
+    .date{font-weight:700; font-size: 14px;}
+    button{appearance:none; border:0; border-radius:10px; padding: 8px 12px; font-weight:700; cursor:pointer;}
+    .reset{background:var(--danger); color:#fff;}
+    .status{font-size:12px; color:var(--muted); min-height:18px;}
+    
+    .content{padding: 12px;}
+    .fridge-section{margin-bottom: 20px;}
+    .fridge-title{font-size:16px; font-weight:700; margin:0 0 10px 0; padding-bottom:6px; border-bottom:2px solid var(--accent);}
+    
+    .grid-container{display:grid; gap:8px; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));}
+    .grid-container.vertical{grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));}
+
+    .crate-box{border:1px solid var(--line); border-radius:8px; background:var(--bg); padding:5px;}
+    
+    .crate-box select{
+      width:100%; border:1px solid var(--line); border-radius:6px; padding:6px 4px;
+      font-family:inherit; font-size:13px; font-weight:500; background-color:var(--input-bg);
+      margin-bottom: 4px;
+    }
+    .half-section{display:flex; align-items:center; justify-content:center; gap:5px;}
+    .half-section label{font-size:12px; color:var(--muted); font-weight:500;}
+    .half-section input[type="checkbox"]{width:16px; height:16px;}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="header">
+        <div>
+          <h1>ફ્રિજ લેઆઉટ</h1>
+          <div class="status" id="status">લોડ થઈ રહ્યું છે...</div>
+        </div>
+        <div class="controls">
+          <div class="date" id="dateLabel">--</div>
+          <button class="reset" id="resetBtn">RESET</button>
+        </div>
+      </div>
+
+      <div class="content" id="content">
+        <!-- Fridge sections will be dynamically generated here -->
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    // ====== 1) CONFIG (તમારી સ્ક્રીન1 જેવું જ) ======
+    const FIREBASE_CONFIG = {
+      apiKey: "AIzaSyAvmNdKnVDqciXWN-fASQ77b9ovdamaM7k",
+      authDomain: "amul-stock.firebaseapp.com",
+      projectId: "amul-stock",
+      storageBucket: "amul-stock.firebasestorage.app",
+      messagingSenderId: "721564107787",
+      appId: "1:721564107787:web:d2e305a47e0a8becae730e"
+    };
+    
+    const PRODUCTS = [
+      "ખાલી", "તાજા 150", "ગોલ્ડ 500", "તાજા 500", "T સ્પે ગીર", "A તાજા 500", "T સ્પે અમુલ",
+      "છાસ ગીર", "છાસ 680", "છાસ 300", "FF 150", "દહીં 850", "દહીં 1 KG", "દહીં 5 KG", "ગોલ્ડ 6 લી"
+    ];
+
+    const FRIDGES = {
+      white_fridge: { name: "વ્હાઇટ ફ્રિજ", count: 14 },
+      blue_fridge: { name: "બ્લુ ફ્રિજ", count: 14 },
+      amul_fridge: { name: "અમુલ ફ્રિજ", count: 14 },
+      fourth_fridge: { name: "ચોથું ફ્રિજ", count: 4, isVertical: true }
+    };
+
+    // ====== 2) FIREBASE SETUP ======
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, updateDoc, getDoc, onSnapshot, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
+
+    const app = initializeApp(FIREBASE_CONFIG);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    try { await enableIndexedDbPersistence(db); } catch(e) { console.warn('Persistence:', e.message); }
+
+    // ====== 3) DOM અને અન્ય સેટઅપ ======
+    const $status = document.getElementById('status');
+    const $content = document.getElementById('content');
+    
+    const pad2 = n => n.toString().padStart(2, '0');
+    const todayISO = () => {
+      const ist = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+      return `${ist.getFullYear()}-${pad2(ist.getMonth()+1)}-${pad2(ist.getDate())}`;
+    };
+    document.getElementById('dateLabel').textContent = `તારીખ: ${todayISO().split('-').reverse().join('-')}`;
+
+    const dateKey = todayISO();
+    const docRef = doc(db, 'fridge_crates', dateKey);
+
+    // ====== 4) UI બનાવવું ======
+    function buildUI() {
+      const productOptions = PRODUCTS.map(p => `<option value="${p}">${p}</option>`).join('');
+      for (const [fridgeId, fridgeData] of Object.entries(FRIDGES)) {
+        const section = document.createElement('div');
+        section.className = 'fridge-section';
+        
+        const title = document.createElement('h2');
+        title.className = 'fridge-title';
+        title.textContent = fridgeData.name;
+        
+        const grid = document.createElement('div');
+        grid.className = `grid-container ${fridgeData.isVertical ? 'vertical' : ''}`;
+        
+        for (let i = 0; i < fridgeData.count; i++) {
+          const crateBox = document.createElement('div');
+          crateBox.className = 'crate-box';
+          crateBox.innerHTML = `
+            <select data-fridge="${fridgeId}" data-index="${i}" data-type="product">${productOptions}</select>
+            <div class="half-section">
+              <input type="checkbox" id="half_${fridgeId}_${i}" data-fridge="${fridgeId}" data-index="${i}" data-type="isHalf">
+              <label for="half_${fridgeId}_${i}">અળધુ</label>
+            </div>
+          `;
+          grid.appendChild(crateBox);
+        }
+        section.appendChild(title);
+        section.appendChild(grid);
+        $content.appendChild(section);
+      }
+    }
+    
+    // ====== 5) ડેટા હેન્ડલિંગ અને ફાયરબેઝ ======
+    let state = {};
+    const getInitialState = () => {
+      const initialState = {};
+      for (const fridgeId in FRIDGES) {
+        initialState[fridgeId] = Array(FRIDGES[fridgeId].count).fill({ product: 'ખાલી', isHalf: false });
+      }
+      return initialState;
+    };
+
+    let applyingRemote = false;
+
+    function applyStateToUI() {
+      applyingRemote = true;
+      for (const [fridgeId, data] of Object.entries(state)) {
+        data.forEach((crate, index) => {
+          const productSelect = document.querySelector(`select[data-fridge="${fridgeId}"][data-index="${index}"]`);
+          const isHalfCheck = document.querySelector(`input[data-fridge="${fridgeId}"][data-index="${index}"]`);
+          if (productSelect) productSelect.value = crate.product || 'ખાલી';
+          if (isHalfCheck) isHalfCheck.checked = crate.isHalf || false;
+        });
+      }
+      applyingRemote = false;
+    }
+    
+    async function saveState(updatePayload) {
+        await updateDoc(docRef, updatePayload);
+        setStatus('સેવ થઈ ગયું ✅');
+    }
+
+    function setStatus(msg){ $status.textContent = msg; clearTimeout(setStatus._t); setStatus._t = setTimeout(()=>{$status.textContent=''}, 2000); }
+
+    let debounceTimer;
+    $content.addEventListener('change', (e) => {
+        if (applyingRemote || !(e.target.matches('select') || e.target.matches('input[type="checkbox"]'))) return;
+        
+        const { fridge, index, type } = e.target.dataset;
+        const value = (type === 'isHalf') ? e.target.checked : e.target.value;
+
+        // Update local state immediately for responsiveness
+        if(!state[fridge]) state[fridge] = [];
+        if(!state[fridge][index]) state[fridge][index] = { product: 'ખાલી', isHalf: false };
+        state[fridge][index][type] = value;
+
+        setStatus('સેવ થઈ રહ્યું છે...');
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            const updatePayload = { [`${fridge}.${index}.${type}`]: value, updatedAt: new Date() };
+            saveState(updatePayload).catch(console.error);
+        }, 300);
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', async () => {
+        if (!confirm('આજે માટે આખું લેઆઉટ સાફ કરવા RESET કરશો?')) return;
+        state = getInitialState();
+        applyStateToUI();
+        await setDoc(docRef, { ...state, date: dateKey, createdAt: new Date() });
+        setStatus('રીસેટ થઈ ગયું ✅');
+    });
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        try { await signInAnonymously(auth); } catch(e) { setStatus('ઓથેન્ટિકેશન નિષ્ફળ ❌'); }
+        return;
+      }
+      
+      buildUI(); // Auth successful, now build the UI
+
+      const snap = await getDoc(docRef);
+      if (!snap.exists()) {
+        state = getInitialState();
+        await setDoc(docRef, { ...state, date: dateKey, createdAt: new Date() });
+      } else {
+        state = { ...getInitialState(), ...snap.data() };
+      }
+      applyStateToUI();
+      setStatus('રીયલટાઇમ જોડાયેલ ✅');
+
+      onSnapshot(docRef, (snap) => {
+        if (!snap.exists()) return;
+        state = { ...getInitialState(), ...snap.data() };
+        applyStateToUI();
+      }, (error) => {
+        console.error("Snapshot error:", error);
+        setStatus('રીયલટાઇમ કનેક્શન તૂટ્યું ❌');
+      });
+    });
+  </script>
+</body>
+</html>
