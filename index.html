@@ -69,12 +69,12 @@
   </div>
 
   <script type="module">
-    // ====== CONFIG ======
+    // CONFIG
     const FIREBASE_CONFIG = { apiKey: "AIzaSyAvmNdKnVDqciXWN-fASQ77b9ovdamaM7k", authDomain: "amul-stock.firebaseapp.com", projectId: "amul-stock", storageBucket: "amul-stock.firebasestorage.app", messagingSenderId: "721564107787", appId: "1:721564107787:web:d2e305a47e0a8becae730e" };
     const PRODUCTS = [ "ખાલી", "તાજા 150", "ગોલ્ડ 500", "તાજા 500", "T સ્પે ગીર", "A તાજા 500", "T સ્પે અમુલ", "છાસ ગીર", "છાસ 680", "છાસ 300", "FF 150", "દહીં 850", "દહીં 1 KG", "દહીં 5 KG", "ગોલ્ડ 6 લી" ];
     const FRIDGES = { white_fridge: { name: "વ્હાઇટ ફ્રિજ", count: 14, layout: 'custom' }, blue_fridge: { name: "બ્લુ ફ્રિજ", count: 14, layout: 'custom' }, amul_fridge: { name: "અમુલ ફ્રિજ", count: 14, layout: 'custom' }, fourth_fridge: { name: "ચોથું ફ્રિજ", count: 4, layout: 'vertical' } };
 
-    // ====== FIREBASE SETUP ======
+    // FIREBASE SETUP
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
     import { getAuth, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, updateDoc, getDoc, onSnapshot, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
@@ -83,14 +83,14 @@
     const db = getFirestore(app);
     try { await enableIndexedDbPersistence(db); } catch(e) { console.warn('Persistence:', e.message); }
 
-    // ====== DOM & SETUP ======
+    // DOM & SETUP
     const $status = document.getElementById('status');
     const $content = document.getElementById('content');
     const dateKey = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })).toISOString().slice(0, 10);
     document.getElementById('dateLabel').textContent = `તારીખ: ${dateKey.split('-').reverse().join('-')}`;
     const docRef = doc(db, 'fridge_crates', dateKey);
 
-    // ====== UI BUILDER ======
+    // UI BUILDER
     function buildUI() {
       $content.innerHTML = '';
       const productOptions = PRODUCTS.map(p => `<option value="${p}">${p}</option>`).join('');
@@ -131,9 +131,9 @@
         return crateBox;
     }
     
-    // ====== DATA HANDLING & FIREBASE ======
+    // DATA HANDLING & FIREBASE
     let state = {};
-    let pendingChanges = {}; // ===== અહીં નવો ફેરફાર કર્યો =====
+    let localChanges = {}; // This will hold unsaved changes
     const getInitialState = () => { const i = {}; for (const f in FRIDGES) { i[f] = Array(FRIDGES[f].count).fill({ product: 'ખાલી', isHalf: false }); } return i; };
     let applyingRemote = false;
 
@@ -152,62 +152,63 @@
     }
     
     function setStatus(msg){ $status.textContent = msg; clearTimeout(setStatus._t); setStatus._t = setTimeout(()=>{$status.textContent=''}, 2500); }
-
-    // ===== સેવ અને ચેન્જની કાર્યપ્રણાલી બદલી =====
+    
     async function saveState() {
-        if (Object.keys(pendingChanges).length === 0) {
-            setStatus('કોઈ ફેરફાર નથી');
-            return;
-        }
-        setStatus('સેવ થઈ રહ્યું છે...');
-        try {
-            await updateDoc(docRef, { ...pendingChanges, updatedAt: new Date() });
-            pendingChanges = {}; // ફેરફારોને ખાલી કરી દો
-            setStatus('સેવ થઈ ગયું ✅');
-        } catch (error) {
-            console.error("Save failed:", error);
-            setStatus('સેવ નિષ્ફળ ❌');
-        }
+      if (Object.keys(localChanges).length === 0) {
+        setStatus('કોઈ ફેરફાર નથી');
+        return;
+      }
+      setStatus('સેવ થઈ રહ્યું છે...');
+      try {
+        await updateDoc(docRef, { ...localChanges, updatedAt: new Date() });
+        localChanges = {}; // Clear changes after successful save
+        setStatus('સેવ થઈ ગયું ✅');
+      } catch (error) {
+        console.error("Save failed:", error);
+        setStatus('સેવ નિષ્ફળ ❌');
+      }
     }
 
     $content.addEventListener('change', (e) => {
-        if (applyingRemote || !(e.target.matches('select') || e.target.matches('input[type="checkbox"]'))) return;
-        
-        const { fridge, index, type } = e.target.dataset;
-        const value = (type === 'isHalf') ? e.target.checked : e.target.value;
-
-        // લોકલ state ને બદલે pendingChanges માં ફેરફારો ઉમેરો
-        pendingChanges[`${fridge}.${index}.${type}`] = value;
-        
-        setStatus('ફેરફાર સેવ કરવા SAVE દબાવો');
+      if (applyingRemote || !(e.target.matches('select') || e.target.matches('input[type="checkbox"]'))) return;
+      
+      const { fridge, index, type } = e.target.dataset;
+      const value = (type === 'isHalf') ? e.target.checked : e.target.value;
+      
+      localChanges[`${fridge}.${index}.${type}`] = value;
+      setStatus('ફેરફાર સેવ કરવા SAVE દબાવો');
     });
 
     document.getElementById('saveBtn').addEventListener('click', saveState);
 
     document.getElementById('resetBtn').addEventListener('click', async () => {
-        if (!confirm('આજે માટે આખું લેઆઉટ સાફ કરવા RESET કરશો?')) return;
-        pendingChanges = {}; // બાકી રહેલા ફેરફારો કાઢી નાખો
-        const initialState = getInitialState();
-        await setDoc(docRef, { ...initialState, date: dateKey, createdAt: new Date() });
-        // onSnapshot આપમેળે UI અપડેટ કરી દેશે
-        setStatus('રીસેટ થઈ ગયું ✅');
+      if (!confirm('આજે માટે આખું લેઆઉટ સાફ કરવા RESET કરશો?')) return;
+      localChanges = {};
+      const initialState = getInitialState();
+      setStatus('રીસેટ થઈ રહ્યું છે...');
+      await setDoc(docRef, { ...initialState, date: dateKey, createdAt: new Date() });
+      // onSnapshot will automatically update the UI
+      setStatus('રીસેટ થઈ ગયું ✅');
     });
-    
+
     onAuthStateChanged(auth, async (user) => {
       if (!user) { try { await signInAnonymously(auth); } catch(e) { setStatus('ઓથેન્ટિકેશન નિષ્ફળ ❌'); } return; }
+      
       buildUI(); 
-      const snap = await getDoc(docRef);
-      if (!snap.exists()) {
-        state = getInitialState();
-        await setDoc(docRef, { ...state, date: dateKey, createdAt: new Date() });
-      } else { state = { ...getInitialState(), ...snap.data() }; }
-      applyStateToUI();
-      setStatus('રીયલટાઇમ જોડાયેલ ✅');
-      onSnapshot(docRef, (snap) => {
-        if (!snap.exists()) return;
-        state = { ...getInitialState(), ...snap.data() };
+
+      onSnapshot(docRef, async (snap) => {
+        if (!snap.exists()) {
+          state = getInitialState();
+          await setDoc(docRef, { ...state, date: dateKey, createdAt: new Date() });
+        } else {
+          state = { ...getInitialState(), ...snap.data() };
+        }
         applyStateToUI();
-      }, (error) => { console.error("Snapshot error:", error); setStatus('રીયલટાઇમ કનેક્શન તૂટ્યું ❌'); });
+        setStatus('રીયલટાઇમ જોડાયેલ ✅');
+      }, (error) => {
+        console.error("Snapshot error:", error);
+        setStatus('રીયલટાઇમ કનેક્શન તૂટ્યું ❌');
+      });
     });
   </script>
 </body>
